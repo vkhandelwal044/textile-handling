@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payment Tracker</title>
+<style>
+  :root {
+    --maroon: #7A2E2E;
+    --gold: #C98A2C;
+    --cream: #FAF6F0;
+    --teal: #2F6F62;
+    --ink: #3B3330;
+    --alert: #B5533C;
+    --line: #E4DACB;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, "Noto Sans", sans-serif; background: var(--cream); color: var(--ink); margin: 0; font-size: 17px; }
+  header { background: var(--maroon); color: white; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  header h1 { font-family: Georgia, "Noto Serif", serif; font-size: 22px; margin: 0; font-weight: normal; letter-spacing: 0.3px; }
+  #langBar button { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 6px 12px; border-radius: 5px; font-size: 14px; margin-left: 5px; cursor: pointer; }
+  #langBar button.active { background: white; color: var(--maroon); font-weight: bold; }
+
+  nav { display: flex; background: white; border-bottom: 3px solid var(--gold); overflow-x: auto; }
+  nav button { flex: 1; min-width: 110px; padding: 14px 8px; border: none; background: none; font-size: 15px; color: var(--ink); cursor: pointer; border-bottom: 3px solid transparent; }
+  nav button.active { border-bottom: 3px solid var(--maroon); color: var(--maroon); font-weight: bold; }
+
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .summary-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .summary-card { flex: 1; min-width: 140px; background: white; border-top: 4px solid var(--gold); padding: 16px; border-radius: 4px; }
+  .summary-card .big { font-size: 26px; font-weight: bold; color: var(--maroon); }
+  .summary-card .label { font-size: 14px; color: #6b6058; margin-top: 4px; }
+
+  .card { background: white; padding: 18px; border-radius: 6px; margin-bottom: 16px; border: 1px solid var(--line); }
+  .card h3 { margin-top: 0; font-family: Georgia, "Noto Serif", serif; font-weight: normal; color: var(--maroon); font-size: 19px; }
+
+  label { display: block; margin-top: 12px; font-size: 15px; font-weight: bold; }
+  input, select { width: 100%; padding: 9px; margin-top: 4px; font-size: 16px; border: 1px solid #999; border-radius: 5px; background: white; }
+  button.action { margin-top: 14px; width: 100%; padding: 13px; background: var(--maroon); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+  button.action:hover { background: #5f2323; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); font-size: 15px; }
+  th { color: #6b6058; font-weight: normal; font-size: 13px; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 12px; font-size: 13px; }
+  .badge.paid { background: #ddeee9; color: var(--teal); }
+  .badge.partial { background: #fbe9d8; color: var(--gold); }
+  .badge.unpaid { background: #f4dcd6; color: var(--alert); }
+
+  .issue { border-left: 4px solid var(--alert); background: #fdf1ee; padding: 12px; border-radius: 4px; margin-bottom: 10px; font-size: 15px; }
+  .clean { border-left: 4px solid var(--teal); background: #eef6f4; padding: 12px; border-radius: 4px; font-size: 15px; }
+  .waiting { border-left: 4px solid var(--gold); background: #fff7e8; padding: 12px; border-radius: 4px; margin-bottom: 10px; font-size: 15px; }
+  .allocation-pending { border-left: 4px solid var(--gold); background: #fff7e8; padding: 12px; border-radius: 4px; margin-bottom: 10px; font-size: 15px; }
+  .money-summary {
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:8px;
+    margin-top:16px;
+    margin-bottom:12px;
+  }
+  .money-summary-card {
+    padding:10px;
+    border-radius:6px;
+    text-align:center;
+    background:#f7f1e8;
+    border:1px solid #ddd0c0;
+  }
+  .money-summary-card strong { display:block; font-size:20px; }
+  .money-section-title {
+    margin:16px 0 8px;
+    font-size:16px;
+    color:#7f2d2d;
+  }
+  .waiting {
+    border-left:4px solid var(--gold);
+    background:#fff7e8;
+    padding:12px;
+    border-radius:4px;
+    margin-bottom:10px;
+    font-size:15px;
+  }
+  .allocation-pending {
+    border-left:4px solid var(--gold);
+    background:#fff7e8;
+    padding:12px;
+    border-radius:4px;
+    margin-bottom:10px;
+    font-size:15px;
+  }
+  @media (max-width:700px) {
+    .money-summary { grid-template-columns:repeat(2,1fr); }
+  }
+
+  .msg { margin-top: 12px; padding: 11px; border-radius: 5px; font-size: 15px; white-space: pre-wrap; }
+  .msg.ok { background: #ddeee9; color: var(--teal); }
+  .msg.err { background: #f4dcd6; color: var(--alert); }
+
+  .hint { font-size: 12px; color: #6b6058; margin-top: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="t_title">Payment Tracker</h1>
+  <div id="langBar">
+    <button onclick="setLang('en')" id="btn_en" class="active">English</button>
+    <button onclick="setLang('hi')" id="btn_hi">हिन्दी</button>
+    <button onclick="setLang('gu')" id="btn_gu">ગુજરાતી</button>
+  </div>
+</header>
+
+<nav>
+  <button onclick="showPanel('home')" id="nav_home" class="active">Home</button>
+  <button onclick="showPanel('customers')" id="nav_customers" class="">Customers</button>
+  <button onclick="showPanel('invoices')" id="nav_invoices" class="">Invoices</button>
+  <button onclick="showPanel('record')" id="nav_record" class="">Record Payment</button>
+  <button onclick="showPanel('money')" id="nav_money" class="">Where's My Money</button>
+</nav>
+
+<main>
+
+  <!-- HOME -->
+  <div class="panel active" id="panel_home">
+    <div class="summary-row">
+      <div class="summary-card"><div class="big" id="sum_customers">0</div><div class="label" id="t_sumCustomers">Customers</div></div>
+      <div class="summary-card"><div class="big" id="sum_outstanding">0.00</div><div class="label" id="t_sumOutstanding">Total Outstanding (₹)</div></div>
+      <div class="summary-card"><div class="big" id="sum_issues">0</div><div class="label" id="t_sumIssues">Issues Found</div></div>
+    </div>
+    <div class="card">
+      <h3 id="t_homeIntroTitle">What this does</h3>
+      <p id="t_homeIntroText" style="font-size:15px; line-height:1.5;">This tracks payments from customers as they pass through Mauritius Cargo and India Cargo before reaching us. Use 'Record Payment' every time money moves. Use 'Where's My Money' to see if anything doesn't add up.</p>
+    </div>
+  </div>
+
+  <!-- CUSTOMERS -->
+  <div class="panel" id="panel_customers">
+    <div class="card">
+      <h3 id="t_addCustomerHeading">Add a Customer</h3>
+      <label id="t_fullName">Full Name</label><input id="c_name">
+      <label id="t_mobile">Mobile Number</label><input id="c_mobile">
+      <button class="action" onclick="addCustomer()" id="t_addCustomerBtn">Add Customer</button>
+      <div class="msg" id="c_msg" style="display:none"></div>
+    </div>
+    <div class="card">
+      <h3 id="t_customerListHeading">All Customers</h3>
+      <div class="hint">Customer ID is the unique identity. Two people may have the same name.</div>
+      <input id="customerSearch" placeholder="Search by name..." oninput="renderCustomerTable()" style="margin-bottom:10px;">
+      <table><thead><tr><th>ID</th><th id="t_colName">Name</th><th id="t_colMobile">Mobile</th><th id="t_colOutstanding">Outstanding (₹)</th></tr></thead>
+      <tbody id="customerTableBody"><tr><td colspan="4">-</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- INVOICES -->
+  <div class="panel" id="panel_invoices">
+    <div class="card">
+      <h3 id="t_addInvoiceHeading">Add an Invoice</h3>
+      <label id="t_selectCustomer">Select Customer</label>
+      <select id="i_customer"></select>
+      <div class="hint">If two customers share a name, use the ID and mobile number shown to tell them apart. Choose "+ Add New Customer" to create someone new.</div>
+      <label id="t_invoiceNumber">Invoice Number</label><input id="i_number">
+      <label id="t_invoiceDate">Date</label><input id="i_date" type="date">
+      <label id="t_totalAmount">Total Amount</label><input id="i_amount" type="number">
+      <button class="action" onclick="addInvoice()" id="t_addInvoiceBtn">Add Invoice</button>
+      <div class="msg" id="i_msg" style="display:none"></div>
+    </div>
+    <div class="card">
+      <h3 id="t_invoiceListHeading">All Invoices</h3>
+      <input id="invoiceSearch" placeholder="Search by invoice or customer..." oninput="renderInvoiceTable()" style="margin-bottom:10px;">
+      <table><thead><tr><th id="t_colInvoice">Invoice</th><th id="t_colCustomer">Customer</th><th id="t_colTotal">Total (₹)</th><th id="t_colStatus">Status</th></tr></thead>
+      <tbody id="invoiceTableBody"><tr><td colspan="4">-</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- RECORD PAYMENT -->
+  <div class="panel" id="panel_record">
+    <div class="card">
+      <h3 id="t_recordPaymentHeading">Record Money Movement</h3>
+      <p style="font-size:15px; line-height:1.5; color:#6b6058;">Choose the stage first. The form changes because each stage represents a different business event.</p>
+
+      <label id="t_selectStage">What happened?</label>
+      <select id="p_stage" onchange="updatePaymentForm()">
+        <option value="CUSTOMER_TO_MCARGO">Customer paid Mauritius Cargo</option>
+        <option value="MCARGO_TO_ICARGO">Mauritius Cargo sent to India Cargo</option>
+        <option value="ICARGO_TO_BUSINESS">India Cargo sent to Business (us)</option>
+      </select>
+
+      <!-- STAGE 1 -->
+      <div id="stage_customer" style="display:block;">
+        <div class="card" style="margin-top:14px; background:#fffaf5;">
+          <h3>Customer Payment</h3>
+          <p style="font-size:14px; line-height:1.5;">This is where we establish the relationship between the customer's money and their invoice. We do this once; later cargo stages do not ask for the invoice again.</p>
+          <label>Select Customer</label>
+          <select id="p_customer"></select>
+          <div class="hint">If two customers share a name, use the ID and mobile number shown to tell them apart. Choose "+ Add New Customer" to create someone new.</div>
+          <label>Invoice (optional for now)</label>
+          <input id="p_invoice" list="invoiceDatalist" placeholder="Type invoice number, or leave blank">
+          <div class="hint">Leave blank to allocate later. Only existing invoice numbers will be linked.</div>
+          <label>Amount</label><input id="p_amount" type="number" min="0" step="0.01">
+          <label>Date</label><input id="p_date" type="date">
+          <label>Evidence</label>
+          <select id="p_evidence">
+            <option value="call">Phone call</option>
+            <option value="screenshot">Screenshot</option>
+            <option value="bank_receipt">Bank receipt</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- STAGE 2 -->
+      <div id="stage_mcargo" style="display:none;">
+        <div class="card" style="margin-top:14px; background:#fffaf5;">
+          <h3>Mauritius Cargo → India Cargo</h3>
+          <p style="font-size:14px; line-height:1.5;">This can contain money belonging to multiple customers. Enter the total transfer and then record the customer-wise breakup.</p>
+          <label>Total Amount Sent</label><input id="p_total_stage2" type="number" min="0" step="0.01">
+          <label>Date</label><input id="p_date_stage2" type="date">
+          <label>Evidence</label>
+          <select id="p_evidence_stage2">
+            <option value="screenshot">Screenshot</option>
+            <option value="call">Phone call</option>
+            <option value="bank_receipt">Bank receipt</option>
+          </select>
+          <h3 style="margin-top:20px;">Customer Breakdown</h3>
+          <p class="hint">For each customer, select the Stage-1 payment this money came from. The system will create the stage link automatically.</p>
+          <div id="breakdownRows"></div>
+          <button type="button" class="action" onclick="addBreakdownRow()" style="background:#2F6F62;">+ Add Customer</button>
+          <p id="breakdownTotal" style="font-weight:bold; margin-top:12px;">Breakup Total: ₹0.00</p>
+        </div>
+      </div>
+
+      <!-- STAGE 3 -->
+      <div id="stage_business" style="display:none;">
+        <div class="card" style="margin-top:14px; background:#fffaf5;">
+          <h3>India Cargo → Business</h3>
+          <p style="font-size:14px; line-height:1.5;">Record the total amount that actually reached the business. Customer ownership is not inferred from this total.</p>
+          <label>Received from which Stage-2 transfer?</label>
+          <select id="p_stage3_source"></select>
+          <div class="hint">Select the Mauritius Cargo → India Cargo transfer this receipt belongs to. The system shows how much remains available and will not allow the same money to be transferred twice.</div>
+          <label>Amount Received</label><input id="p_amount_stage3" type="number" min="0" step="0.01">
+          <div class="hint" id="t_stage3Hint" style="margin-top:10px;"></div>
+          <label>Date</label><input id="p_date_stage3" type="date">
+          <label>Evidence</label>
+          <select id="p_evidence_stage3">
+            <option value="bank_receipt">Bank receipt</option>
+            <option value="screenshot">Screenshot</option>
+            <option value="call">Phone call</option>
+          </select>
+        </div>
+      </div>
+
+      <label id="t_confirmed">Is this confirmed (money actually moved)?</label>
+      <select id="p_status"><option value="confirmed" id="t_yes">Yes, confirmed</option><option value="pending" id="t_no">Not yet, just expected</option></select>
+      <button class="action" onclick="recordPayment()" id="t_recordBtn">Save</button>
+      <div class="msg" id="p_msg" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- WHERE'S MY MONEY -->
+  <div class="panel" id="panel_money">
+    <div class="card">
+      <h3 id="t_moneyHeading">Where's My Money</h3>
+      <p id="t_moneyIntro" style="font-size:15px; color:#6b6058;">This checks every payment batch and tells you if anything doesn't add up, and where it's stuck.</p>
+      <button class="action" onclick="checkMoney()" id="t_moneyBtn">Check Now</button>
+      <div id="moneySummary" class="money-summary" style="display:none;"></div>
+      <div id="moneyResults" style="margin-top:16px;"><div class="clean">No issues found — everything adds up correctly.</div></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Invoice suggestion list (invoices are typed by number, not auto-created) -->
+<datalist id="invoiceDatalist"></datalist>
+
+<script>
+const T = {
+  en: {
+    title: "Payment Tracker",
+    nav_home: "Home", nav_customers: "Customers", nav_invoices: "Invoices", nav_record: "Record Payment", nav_money: "Where's My Money",
+    sumCustomers: "Customers", sumOutstanding: "Total Outstanding (₹)", sumIssues: "Issues Found",
+    homeIntroTitle: "What this does",
+    homeIntroText: "This tracks payments from customers as they pass through Mauritius Cargo and India Cargo before reaching us. Use 'Record Payment' every time money moves. Use 'Where's My Money' to see if anything doesn't add up.",
+    addCustomerHeading: "Add a Customer", fullName: "Full Name", mobile: "Mobile Number", addCustomerBtn: "Add Customer",
+    customerListHeading: "All Customers", colName: "Name", colMobile: "Mobile", colOutstanding: "Outstanding (₹)",
+    addInvoiceHeading: "Add an Invoice", selectCustomer: "Select Customer", invoiceNumber: "Invoice Number",
+    invoiceDate: "Date", totalAmount: "Total Amount", addInvoiceBtn: "Add Invoice",
+    invoiceListHeading: "All Invoices", colInvoice: "Invoice", colCustomer: "Customer", colTotal: "Total (₹)", colStatus: "Status",
+    statusPaid: "Paid", statusPartial: "Partly Paid", statusUnpaid: "Unpaid",
+    recordPaymentHeading: "Record Money Movement", selectStage: "What happened?",
+    stage1: "Customer paid Mauritius Cargo", stage2: "Mauritius Cargo sent to India Cargo", stage3: "India Cargo sent to Business (us)",
+    selectCustomer2: "Select Customer", selectInvoiceOptional: "Which Invoice? (if known)", amount: "Amount", date: "Date",
+    confirmed: "Is this confirmed (money actually moved)?", yes: "Yes, confirmed", no: "Not yet, just expected", recordBtn: "Save",
+    moneyHeading: "Where's My Money", moneyIntro: "This checks every payment batch and tells you if anything doesn't add up, and where it's stuck.",
+    moneyBtn: "Check Now",
+    customerAdded: "Customer added.", invoiceAdded: "Invoice added.", paymentSaved: "Saved.",
+    selectPlaceholder: "-- Select --", notSure: "-- Not sure yet --", error: "Something went wrong. Please check and try again.",
+    noIssues: "No issues found — everything adds up correctly.",
+    movementCustomer: "Customer",
+movementMauritius: "Mauritius Cargo",
+movementIndia: "India Cargo",
+movementBusiness: "Business",
+    breakupIssue: (from, to, transferTotal, breakupTotal, diff) =>
+  `${from} → ${to}: ₹${transferTotal} was transferred, but ₹${breakupTotal} is assigned to customers. Difference: ₹${diff}.`,
+
+waitingIssue: (from, to, sent) =>
+  `${from} → ${to}: ₹${sent} is recorded. Waiting for the next stage.`,
+
+stageIssue: (from, to, nextTo, sent, accounted, diff) =>
+  `${from} → ${to}: ₹${sent} was recorded, but only ₹${accounted} reached the next stage. Difference: ₹${diff}.`,
+
+customerStageIssue: (name, to, sent, accounted, diff) =>
+  `${name} → ${to}: ₹${sent} was recorded, but only ₹${accounted} reached the next stage. Difference: ₹${diff}.`,
+
+unallocIssue: (name, amt) =>
+  `${name}: ₹${amt} has reached the business but is not yet matched to an invoice.`,
+
+
+    incomingWaiting: (from, to, amt) => `${from} → ${to}: ₹${amt} is recorded, but no money from the previous stage is linked yet. Waiting for the previous stage.`,
+    incomingMismatch: (from, to, total, received, diff) => `${from} → ${to}: the transfer total is ₹${total}, but only ₹${received} is linked from the previous stage. Difference: ₹${diff}.`,
+    incomingExtra: (from, to, total, received, extra) => `${from} → ${to}: the transfer total is ₹${total}, but ₹${received} is linked from the previous stage. Extra linked amount: ₹${extra}.`,
+    customerOverassigned: (amt, assigned) => `Business receipt is ₹${amt}, but ₹${assigned} is assigned to customers. Customer assignment is higher by ₹${(Number(assigned) - Number(amt)).toFixed(2)}.`,
+    customerUnallocated: (name, amt) => `${name}: ₹${amt} has reached the business but is not yet matched to an invoice.`,
+    mismatchSection: "Mismatches — money needs investigation",
+    waitingSection: "Waiting — next stage not recorded yet",
+    allocationSection: "Allocation pending — ownership/invoice not confirmed",
+    matchedSection: "Matched",
+    mismatchCount: "Mismatches",
+    waitingCount: "Waiting",
+    allocationCount: "Allocation pending",
+    matchedCount: "Matched",
+    stage3Hint: "This step records only the total amount that reached the business. The system does not assume which customer's money it is. Customer-wise ownership is recorded separately only when supported by actual evidence.",
+    availableStage2: (amt) => `Available from this Stage-2 transfer now: ₹${amt}. You cannot transfer more than this amount.`,
+    tooMuchStage3: (amt) => `Only ₹${amt} remains available from this Stage-2 transfer.`,
+    remainingStage2: (total, sent, remaining) => `Total ₹${total} — already transferred ₹${sent} — remaining ₹${remaining}.`,
+    waitingText: (from, to, amt) => `${from} → ${to}: ₹${amt} is recorded. Waiting for the next stage.`,
+    mismatchText: (from, to, sent, reached, diff) => `${from} → ${to}: ₹${sent} was recorded, but ₹${reached} reached the next stage. Difference: ₹${diff}.`,
+    breakupText: (from, to, total, assigned, diff) => `${from} → ${to}: ₹${total} was transferred, but ₹${assigned} is assigned to customers. Difference: ₹${diff}.`,
+    businessUnassigned: (amt, unassigned) => `Business received ₹${amt} from India Cargo, but ₹${unassigned} is not assigned to customers. No customer ownership has been assumed.`,
+    extraLinked: (from, to, linked, total, extra) => `${from} → ${to}: ₹${linked} is linked into this transfer, but the transfer total is only ₹${total}. Extra linked amount: ₹${extra}.`,
+    businessExtra: (linked, total, extra) => `India Cargo → Business: ₹${linked} is linked into Business, but the Business receipt is only ₹${total}. Extra linked amount: ₹${extra}.`,
+    matchedMovement: (from, to, amt) => `${from} → ${to}: ₹${amt} fully accounted for.`
+  },
+  hi: {
+    title: "भुगतान ट्रैकर",
+    nav_home: "होम", nav_customers: "ग्राहक", nav_invoices: "बिल", nav_record: "भुगतान दर्ज करें", nav_money: "पैसा कहाँ है",
+    sumCustomers: "ग्राहक", sumOutstanding: "कुल बकाया (₹)", sumIssues: "मिली समस्याएं",
+    homeIntroTitle: "यह क्या करता है",
+    homeIntroText: "यह ग्राहकों के भुगतान को ट्रैक करता है जो मॉरीशस कार्गो और इंडिया कार्गो से होकर हम तक पहुंचते हैं। जब भी पैसा move हो, 'भुगतान दर्ज करें' का उपयोग करें। कुछ गड़बड़ है या नहीं, यह देखने के लिए 'पैसा कहाँ है' देखें।",
+    addCustomerHeading: "ग्राहक जोड़ें", fullName: "पूरा नाम", mobile: "मोबाइल नंबर", addCustomerBtn: "ग्राहक जोड़ें",
+    customerListHeading: "सभी ग्राहक", colName: "नाम", colMobile: "मोबाइल", colOutstanding: "बकाया (₹)",
+    addInvoiceHeading: "बिल जोड़ें", selectCustomer: "ग्राहक चुनें", invoiceNumber: "बिल नंबर",
+    invoiceDate: "तारीख", totalAmount: "कुल राशि", addInvoiceBtn: "बिल जोड़ें",
+    invoiceListHeading: "सभी बिल", colInvoice: "बिल", colCustomer: "ग्राहक", colTotal: "कुल (₹)", colStatus: "स्थिति",
+    statusPaid: "भुगतान हो गया", statusPartial: "आंशिक भुगतान", statusUnpaid: "बकाया",
+    recordPaymentHeading: "पैसे की जानकारी दर्ज करें", selectStage: "क्या हुआ?",
+    stage1: "ग्राहक ने मॉरीशस कार्गो को भुगतान किया", stage2: "मॉरीशस कार्गो ने इंडिया कार्गो को भेजा", stage3: "इंडिया कार्गो ने बिज़नेस (हमें) भेजा",
+    selectCustomer2: "ग्राहक चुनें", selectInvoiceOptional: "कौन सा बिल? (अगर पता हो)", amount: "राशि", date: "तारीख",
+    confirmed: "क्या यह पक्का है?", yes: "हाँ, पक्का है", no: "अभी नहीं, सिर्फ उम्मीद है", recordBtn: "सेव करें",
+    moneyHeading: "पैसा कहाँ है", moneyIntro: "यह हर भुगतान की जांच करता है और बताता है कि कुछ गड़बड़ है या नहीं, और पैसा कहां अटका है।",
+    moneyBtn: "अभी जांचें",
+    customerAdded: "ग्राहक जोड़ा गया।", invoiceAdded: "बिल जोड़ा गया।", paymentSaved: "सेव हुआ।",
+    selectPlaceholder: "-- चुनें --", notSure: "-- अभी पता नहीं --", error: "कुछ गलत हुआ। कृपया जांचें और फिर कोशिश करें।",
+    noIssues: "कोई समस्या नहीं मिली — सब कुछ सही है।",
+    movementCustomer: "ग्राहक",
+movementMauritius: "मॉरीशस कार्गो",
+movementIndia: "इंडिया कार्गो",
+movementBusiness: "बिज़नेस",
+    breakupIssue: (from, to, transferTotal, breakupTotal, diff) =>
+  `${from} → ${to}: ₹${transferTotal} भेजे गए, लेकिन ग्राहकों के हिसाब में ₹${breakupTotal} दर्ज हैं। अंतर: ₹${diff}।`,
+
+waitingIssue: (from, to, sent) =>
+  `${from} → ${to}: ₹${sent} दर्ज हैं। अगले चरण की प्रतीक्षा है।`,
+
+stageIssue: (from, to, nextTo, sent, accounted, diff) =>
+  `${from} → ${to}: ₹${sent} दर्ज हैं, लेकिन अगले चरण तक केवल ₹${accounted} पहुँचे। अंतर: ₹${diff}।`,
+
+customerStageIssue: (name, to, sent, accounted, diff) =>
+  `${name} → ${to}: ₹${sent} दर्ज हैं, लेकिन अगले चरण तक केवल ₹${accounted} पहुँचे। अंतर: ₹${diff}।`,
+
+unallocIssue: (name, amt) =>
+  `${name}: ₹${amt} बिज़नेस को मिल गए हैं, लेकिन अभी किसी बिल से नहीं जोड़े गए हैं।`,
+
+
+    incomingWaiting: (from, to, amt) => `${from} → ${to}: ₹${amt} दर्ज हैं, लेकिन पिछले चरण से अभी कोई राशि लिंक नहीं हुई है। पिछले चरण की प्रतीक्षा है।`,
+    incomingMismatch: (from, to, total, received, diff) => `${from} → ${to}: ट्रांसफर की कुल राशि ₹${total} है, लेकिन पिछले चरण से केवल ₹${received} लिंक हैं। अंतर: ₹${diff}।`,
+    incomingExtra: (from, to, total, received, extra) => `${from} → ${to}: ट्रांसफर की कुल राशि ₹${total} है, लेकिन पिछले चरण से ₹${received} लिंक हैं। अतिरिक्त लिंक राशि: ₹${extra}।`,
+    customerOverassigned: (amt, assigned) => `बिज़नेस की प्राप्त राशि ₹${amt} है, लेकिन ग्राहकों को ₹${assigned} आवंटित हैं। ग्राहक आवंटन ₹${(Number(assigned) - Number(amt)).toFixed(2)} अधिक है।`,
+    customerUnallocated: (name, amt) => `${name}: ₹${amt} बिज़नेस तक पहुँच चुके हैं, लेकिन अभी किसी बिल से नहीं जोड़े गए हैं।`,
+    mismatchSection: "असंगतियां — पैसों की जांच जरूरी है",
+    waitingSection: "प्रतीक्षा — अगला चरण अभी दर्ज नहीं हुआ",
+    allocationSection: "आवंटन बाकी — ग्राहक/बिल की पुष्टि नहीं हुई",
+    matchedSection: "मिलान पूरा",
+    mismatchCount: "असंगतियां",
+    waitingCount: "प्रतीक्षा",
+    allocationCount: "आवंटन बाकी",
+    matchedCount: "मिलान पूरा",
+    stage3Hint: "यह चरण केवल बिज़नेस तक पहुँची कुल राशि दर्ज करता है। सिस्टम यह अनुमान नहीं लगाता कि पैसा किस ग्राहक का है। ग्राहक के हिसाब से स्वामित्व केवल वास्तविक प्रमाण होने पर अलग से दर्ज किया जाता है।",
+    availableStage2: (amt) => `इस स्टेज-2 ट्रांसफर से अभी ₹${amt} उपलब्ध हैं। इससे अधिक राशि आगे नहीं भेज सकते।`,
+    tooMuchStage3: (amt) => `इस स्टेज-2 ट्रांसफर से केवल ₹${amt} बाकी हैं।`,
+    remainingStage2: (total, sent, remaining) => `कुल ₹${total} — पहले भेजे गए ₹${sent} — बाकी ₹${remaining}।`,
+    waitingText: (from, to, amt) => `${from} → ${to}: ₹${amt} दर्ज हैं। अगले चरण की प्रतीक्षा है।`,
+    mismatchText: (from, to, sent, reached, diff) => `${from} → ${to}: ₹${sent} दर्ज हैं, लेकिन अगले चरण तक ₹${reached} पहुँचे। अंतर: ₹${diff}।`,
+    breakupText: (from, to, total, assigned, diff) => `${from} → ${to}: ₹${total} भेजे गए, लेकिन ग्राहकों के लिए ₹${assigned} दर्ज हैं। अंतर: ₹${diff}।`,
+    businessUnassigned: (amt, unassigned) => `बिज़नेस को इंडिया कार्गो से ₹${amt} मिले, लेकिन ₹${unassigned} अभी ग्राहकों को आवंटित नहीं किए गए हैं। ग्राहक की हिस्सेदारी का अनुमान नहीं लगाया गया है।`,
+    extraLinked: (from, to, linked, total, extra) => `${from} → ${to}: ₹${linked} इस ट्रांसफर से जुड़े हैं, लेकिन ट्रांसफर की कुल राशि ₹${total} है। अतिरिक्त जुड़ी राशि: ₹${extra}।`,
+    businessExtra: (linked, total, extra) => `इंडिया कार्गो → बिज़नेस: ₹${linked} जुड़े हैं, लेकिन बिज़नेस को मिली राशि केवल ₹${total} है। अतिरिक्त जुड़ी राशि: ₹${extra}।`,
+    matchedMovement: (from, to, amt) => `${from} → ${to}: ₹${amt} पूरी तरह दर्ज है।`
+  },
+  gu: {
+    title: "પેમેન્ટ ટ્રેકર",
+    nav_home: "હોમ", nav_customers: "ગ્રાહકો", nav_invoices: "બિલ", nav_record: "પેમેન્ટ નોંધો", nav_money: "પૈસા ક્યાં છે",
+    sumCustomers: "ગ્રાહકો", sumOutstanding: "કુલ બાકી (₹)", sumIssues: "મળેલ સમસ્યાઓ",
+    homeIntroTitle: "આ શું કરે છે",
+    homeIntroText: "આ ગ્રાહકોના પેમેન્ટને ટ્રેક કરે છે જે મોરેશિયસ કાર્ગો અને ઇન્ડિયા કાર્ગો થઈને અમારા સુધી પહોંચે છે. જ્યારે પણ પૈસા મૂવ થાય ત્યારે 'પેમેન્ટ નોંધો' વાપરો. કંઈ ખોટું છે કે નહીં તે જોવા માટે 'પૈસા ક્યાં છે' જુઓ.",
+    addCustomerHeading: "ગ્રાહક ઉમેરો", fullName: "પૂરું નામ", mobile: "મોબાઇલ નંબર", addCustomerBtn: "ગ્રાહક ઉમેરો",
+    customerListHeading: "બધા ગ્રાહકો", colName: "નામ", colMobile: "મોબાઇલ", colOutstanding: "બાકી (₹)",
+    addInvoiceHeading: "બિલ ઉમેરો", selectCustomer: "ગ્રાહક પસંદ કરો", invoiceNumber: "બિલ નંબર",
+    invoiceDate: "તારીખ", totalAmount: "કુલ રકમ", addInvoiceBtn: "બિલ ઉમેરો",
+    invoiceListHeading: "બધા બિલ", colInvoice: "બિલ", colCustomer: "ગ્રાહક", colTotal: "કુલ (₹)", colStatus: "સ્થિતિ",
+    statusPaid: "ચૂકવાયું", statusPartial: "આંશિક ચૂકવાયું", statusUnpaid: "બાકી",
+    recordPaymentHeading: "પૈસાની માહિતી નોંધો", selectStage: "શું થયું?",
+    stage1: "ગ્રાહકે મોરેશિયસ કાર્ગોને ચૂકવ્યું", stage2: "મોરેશિયસ કાર્ગોએ ઇન્ડિયા કાર્ગોને મોકલ્યું", stage3: "ઇન્ડિયા કાર્ગોએ બિઝનેસ (અમને) મોકલ્યું",
+    selectCustomer2: "ગ્રાહક પસંદ કરો", selectInvoiceOptional: "કયું બિલ? (જો ખબર હોય તો)", amount: "રકમ", date: "તારીખ",
+    confirmed: "શું આ પાકું છે?", yes: "હા, પાકું છે", no: "હજુ નહીં, ફક્ત અપેક્ષા છે", recordBtn: "સેવ કરો",
+    moneyHeading: "પૈસા ક્યાં છે", moneyIntro: "આ દરેક પેમેન્ટ બેચ તપાસે છે અને જણાવે છે કે કંઈ ખોટું છે કે નહીં, અને પૈસા ક્યાં અટક્યા છે.",
+    moneyBtn: "હમણાં તપાસો",
+    customerAdded: "ગ્રાહક ઉમેરાયો.", invoiceAdded: "બિલ ઉમેરાયું.", paymentSaved: "સેવ થયું.",
+    selectPlaceholder: "-- પસંદ કરો --", notSure: "-- હજુ ખબર નથી --", error: "કંઈક ખોટું થયું. કૃપા કરી તપાસો અને ફરી પ્રયાસ કરો.",
+    noIssues: "કોઈ સમસ્યા નથી મળી — બધું બરાબર છે.",
+    movementCustomer: "ગ્રાહક",
+movementMauritius: "મોરેશિયસ કાર્ગો",
+movementIndia: "ઇન્ડિયા કાર્ગો",
+movementBusiness: "બિઝનેસ",
+    breakupIssue: (from, to, transferTotal, breakupTotal, diff) =>
+  `${from} → ${to}: ₹${transferTotal} મોકલવામાં આવ્યા, પરંતુ ગ્રાહકોના હિસાબમાં ₹${breakupTotal} નોંધાયા છે. તફાવત: ₹${diff}.`,
+
+waitingIssue: (from, to, sent) =>
+  `${from} → ${to}: ₹${sent} નોંધાયા છે. આગળના તબક્કાની રાહ છે.`,
+
+stageIssue: (from, to, nextTo, sent, accounted, diff) =>
+  `${from} → ${to}: ₹${sent} નોંધાયા છે, પરંતુ આગળના તબક્કા સુધી માત્ર ₹${accounted} પહોંચ્યા. તફાવત: ₹${diff}.`,
+
+customerStageIssue: (name, to, sent, accounted, diff) =>
+  `${name} → ${to}: ₹${sent} નોંધાયા છે, પરંતુ આગળના તબક્કા સુધી માત્ર ₹${accounted} પહોંચ્યા. તફાવત: ₹${diff}.`,
+
+unallocIssue: (name, amt) =>
+  `${name}: ₹${amt} બિઝનેસને મળી ગયા છે, પરંતુ હજુ કોઈ બિલ સાથે જોડાયા નથી.`,
+
+
+    incomingWaiting: (from, to, amt) => `${from} → ${to}: ₹${amt} નોંધાયેલ છે, પરંતુ અગાઉના સ્ટેજમાંથી હજુ કોઈ રકમ લિંક થઈ નથી. અગાઉના સ્ટેજની રાહ છે.`,
+    incomingMismatch: (from, to, total, received, diff) => `${from} → ${to}: ટ્રાન્સફરની કુલ રકમ ₹${total} છે, પરંતુ અગાઉના સ્ટેજમાંથી માત્ર ₹${received} લિંક છે. તફાવત: ₹${diff}.`,
+    incomingExtra: (from, to, total, received, extra) => `${from} → ${to}: ટ્રાન્સફરની કુલ રકમ ₹${total} છે, પરંતુ અગાઉના સ્ટેજમાંથી ₹${received} લિંક છે. વધારાની લિંક રકમ: ₹${extra}.`,
+    customerOverassigned: (amt, assigned) => `બિઝનેસને મળેલી રકમ ₹${amt} છે, પરંતુ ગ્રાહકોને ₹${assigned} ફાળવાયા છે. ગ્રાહક ફાળવણી ₹${(Number(assigned) - Number(amt)).toFixed(2)} વધુ છે.`,
+    customerUnallocated: (name, amt) => `${name}: ₹${amt} બિઝનેસ સુધી પહોંચી ગયા છે, પરંતુ હજુ કોઈ બિલ સાથે જોડાયા નથી.`,
+    mismatchSection: "મિસમેચ — પૈસાની તપાસ જરૂરી છે",
+    waitingSection: "રાહ જોવી — આગળનો સ્ટેજ હજુ નોંધાયો નથી",
+    allocationSection: "ફાળવણી બાકી — ગ્રાહક/બિલની પુષ્ટિ થઈ નથી",
+    matchedSection: "મેચ થયેલ",
+    mismatchCount: "મિસમેચ",
+    waitingCount: "રાહ",
+    allocationCount: "ફાળવણી બાકી",
+    matchedCount: "મેચ થયેલ",
+    stage3Hint: "આ સ્ટેજમાં માત્ર બિઝનેસ સુધી પહોંચેલી કુલ રકમ નોંધાય છે. સિસ્ટમ પૈસા કયા ગ્રાહકના છે તેનો અંદાજ લગાવતું નથી. ગ્રાહક મુજબની માલિકી માત્ર વાસ્તવિક પુરાવા હોય ત્યારે અલગથી નોંધાય છે.",
+    availableStage2: (amt) => `આ સ્ટેજ-2 ટ્રાન્સફરમાંથી હાલમાં ₹${amt} ઉપલબ્ધ છે. આથી વધુ રકમ આગળ મોકલી શકાતી નથી.`,
+    tooMuchStage3: (amt) => `આ સ્ટેજ-2 ટ્રાન્સફરમાંથી માત્ર ₹${amt} બાકી છે.`,
+    remainingStage2: (total, sent, remaining) => `કુલ ₹${total} — પહેલેથી મોકલેલ ₹${sent} — બાકી ₹${remaining}.`,
+    waitingText: (from, to, amt) => `${from} → ${to}: ₹${amt} નોંધાયેલ છે. આગળના સ્ટેજની રાહ છે.`,
+    mismatchText: (from, to, sent, reached, diff) => `${from} → ${to}: ₹${sent} નોંધાયેલ છે, પરંતુ આગળના સ્ટેજ સુધી ₹${reached} પહોંચ્યા. તફાવત: ₹${diff}.`,
+    breakupText: (from, to, total, assigned, diff) => `${from} → ${to}: ₹${total} ટ્રાન્સફર થયા, પરંતુ ગ્રાહકો માટે ₹${assigned} ફાળવાયા છે. તફાવત: ₹${diff}.`,
+    businessUnassigned: (amt, unassigned) => `બિઝનેસને ઇન્ડિયા કાર્ગોથી ₹${amt} મળ્યા, પરંતુ ₹${unassigned} હજુ ગ્રાહકોને ફાળવાયા નથી. ગ્રાહકની માલિકીનો અંદાજ લગાવવામાં આવ્યો નથી.`,
+    extraLinked: (from, to, linked, total, extra) => `${from} → ${to}: ₹${linked} આ ટ્રાન્સફર સાથે જોડાયેલા છે, પરંતુ ટ્રાન્સફરની કુલ રકમ ₹${total} છે. વધારાની જોડાયેલી રકમ: ₹${extra}.`,
+    businessExtra: (linked, total, extra) => `ઇન્ડિયા કાર્ગો → બિઝનેસ: ₹${linked} જોડાયેલા છે, પરંતુ બિઝનેસને મળેલી રકમ માત્ર ₹${total} છે. વધારાની જોડાયેલી રકમ: ₹${extra}.`,
+    matchedMovement: (from, to, amt) => `${from} → ${to}: ₹${amt} સંપૂર્ણ રીતે નોંધાયેલ છે.`
+  }
+};
+
+let currentLang = "en";
+
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('#langBar button').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn_' + lang).classList.add('active');
+  const dict = T[lang];
+  document.querySelectorAll('[id^="t_"]').forEach(el => {
+    const key = el.id.slice(2);
+    if (typeof dict[key] === "string") el.textContent = dict[key];
+  });
+  document.getElementById('nav_home').textContent = dict.nav_home;
+  document.getElementById('nav_customers').textContent = dict.nav_customers;
+  document.getElementById('nav_invoices').textContent = dict.nav_invoices;
+  document.getElementById('nav_record').textContent = dict.nav_record;
+  document.getElementById('nav_money').textContent = dict.nav_money;
+  loadEverything();
+}
+
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel_' + name).classList.add('active');
+  document.getElementById('nav_' + name).classList.add('active');
+}
+
+function showMsg(elId, text, isError) {
+  const el = document.getElementById(elId);
+  el.style.display = "block";
+  el.className = "msg " + (isError ? "err" : "ok");
+  el.textContent = text;
+}
+
+function statusBadge(status, dict) {
+  const map = { paid: ["paid", dict.statusPaid], partially_paid: ["partial", dict.statusPartial], unpaid: ["unpaid", dict.statusUnpaid] };
+  const [cls, label] = map[status] || ["unpaid", status];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+let cachedCustomers = [], cachedInvoices = [];
+
+// --- Customer identity helpers ---
+// Customer ID is the real identity. Names are NOT unique — two different
+// people can be named "Ishika". Every dropdown below shows ID and mobile
+// number alongside the name so they're never confused with each other.
+
+// Builds the <option> list shared by every customer dropdown in the page:
+// a placeholder, one option per real customer (labelled "Name — ID n — mobile"),
+// and a special "+ Add New Customer" option at the end.
+function buildCustomerOptionsHTML() {
+  let html = '<option value="">-- Select Customer --</option>';
+  html += cachedCustomers.map(c => {
+    const mobile = c.mobile ? ` — ${c.mobile}` : '';
+    return `<option value="${c.id}">${c.full_name} — ID ${c.id}${mobile}</option>`;
+  }).join("");
+  html += '<option value="__new__">+ Add New Customer</option>';
+  return html;
+}
+
+// Refreshes every customer dropdown on the page (the two fixed ones, plus
+// any Stage-2 breakdown rows currently on screen) with the latest customer
+// list — used both on load and right after a new customer is created inline.
+function refreshAllCustomerSelects() {
+  const html = buildCustomerOptionsHTML();
+  document.getElementById("i_customer").innerHTML = html;
+  document.getElementById("p_customer").innerHTML = html;
+  document.querySelectorAll(".breakdown-customer").forEach(sel => {
+    const prevVal = sel.value;
+    sel.innerHTML = html;
+    if (prevVal && prevVal !== "__new__") sel.value = prevVal;
+  });
+}
+
+// Reads a customer dropdown's value as a real customer ID. Returns null for
+// "nothing selected" AND for the special "+ Add New Customer" placeholder
+// value, so a half-finished "add new customer" action is never accidentally
+// treated as a valid selection.
+function getSelectedCustomerId(elementId) {
+  const value = document.getElementById(elementId).value;
+  if (!value || value === "__new__") return null;
+  return Number(value);
+}
+
+// Called whenever ANY customer dropdown changes. If the person picked
+// "+ Add New Customer", this asks for a name (and optional mobile) via a
+// simple prompt, creates the customer on the backend, refreshes every
+// dropdown on the page, and selects the newly created person in the exact
+// dropdown they were using — so adding a customer never requires leaving
+// the screen they were already on.
+async function handleCustomerSelectChange(selectEl) {
+  if (selectEl.value !== "__new__") return;
+  const name = prompt("New customer's full name:");
+  if (!name || !name.trim()) { selectEl.value = ""; return; }
+  const mobile = prompt("Mobile number (optional, press OK to skip):");
+  try {
+    const res = await fetch("/customers", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ full_name: name.trim(), mobile: (mobile && mobile.trim()) ? mobile.trim() : null, address: null, notes: null })
+    });
+    if (!res.ok) throw new Error();
+    const newCustomer = await res.json();
+    cachedCustomers.push(newCustomer);
+    refreshAllCustomerSelects();
+    selectEl.value = newCustomer.id;
+  } catch (e) {
+    alert("Could not create the new customer. Please try again.");
+    selectEl.value = "";
+  }
+}
+
+// Invoices are NOT auto-created (they need an amount and date we don't
+// have here) — this just checks whether the typed invoice number matches
+// an existing one. If not, it returns null (treated as "no invoice picked").
+function resolveInvoiceId(typedText) {
+  if (!typedText || !typedText.trim()) return null;
+  const match = cachedInvoices.find(
+    i => i.invoice_number.trim().toLowerCase() === typedText.trim().toLowerCase()
+  );
+  return match ? match.id : null;
+}
+
+async function loadEverything() {
+  const dict = T[currentLang];
+  try { cachedCustomers = await (await fetch("/customers")).json(); } catch (e) { cachedCustomers = []; }
+  try { cachedInvoices = await (await fetch("/invoices")).json(); } catch (e) { cachedInvoices = []; }
+
+  // Single combined request for every customer's outstanding amount,
+  // instead of one request per customer (this is what makes it scale
+  // to hundreds/thousands of customers).
+  let outstandingMap = {};
+  try {
+    const allOutstanding = await (await fetch("/payment-history/all-customers")).json();
+    allOutstanding.forEach(o => { outstandingMap[o.customer_id] = Number(o.total_outstanding); });
+  } catch (e) {}
+
+  refreshAllCustomerSelects();
+  document.getElementById("i_customer").onchange = () => handleCustomerSelectChange(document.getElementById("i_customer"));
+  document.getElementById("p_customer").onchange = () => handleCustomerSelectChange(document.getElementById("p_customer"));
+
+  document.getElementById("invoiceDatalist").innerHTML =
+    cachedInvoices.map(i => `<option value="${i.invoice_number}"></option>`).join("");
+
+  document.getElementById("sum_customers").textContent = cachedCustomers.length;
+
+  let totalOutstanding = 0;
+  cachedCustomers.forEach(c => {
+    c._outstanding = outstandingMap[c.id] || 0;
+    totalOutstanding += c._outstanding;
+  });
+  document.getElementById("sum_outstanding").textContent = totalOutstanding.toFixed(2);
+
+  renderCustomerTable();
+  renderInvoiceTable();
+  refreshPaymentSources();
+}
+
+function renderCustomerTable() {
+  const filter = (document.getElementById("customerSearch")?.value || "").toLowerCase();
+  const rows = cachedCustomers
+    .filter(c => c.full_name.toLowerCase().includes(filter))
+    .map(c => `<tr><td>${c.id}</td><td>${c.full_name}</td><td>${c.mobile || '-'}</td><td>${c._outstanding.toFixed(2)}</td></tr>`);
+  document.getElementById("customerTableBody").innerHTML = rows.join("") || `<tr><td colspan="4">-</td></tr>`;
+}
+
+function renderInvoiceTable() {
+  const dict = T[currentLang];
+  const filter = (document.getElementById("invoiceSearch")?.value || "").toLowerCase();
+  const rows = cachedInvoices
+    .filter(i => (i.invoice_number || "").toLowerCase().includes(filter) || (i.customer_name || "").toLowerCase().includes(filter))
+    .map(i => {
+      const c = cachedCustomers.find(c => c.id === i.customer_id);
+      const customerLabel = c ? `${c.full_name} — ID ${c.id}` : (i.customer_name || "");
+      return `<tr><td>${i.invoice_number}</td><td>${customerLabel}</td><td>${Number(i.total_amount).toFixed(2)}</td><td>${statusBadge(i.status, dict)}</td></tr>`;
+    });
+  document.getElementById("invoiceTableBody").innerHTML = rows.join("") || `<tr><td colspan="4">-</td></tr>`;
+}
+
+async function addCustomer() {
+  const dict = T[currentLang];
+  try {
+    const res = await fetch("/customers", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ full_name: document.getElementById("c_name").value,
+        mobile: document.getElementById("c_mobile").value || null, address: null, notes: null })
+    });
+    if (!res.ok) throw new Error();
+    document.getElementById("c_name").value = ""; document.getElementById("c_mobile").value = "";
+    showMsg("c_msg", dict.customerAdded, false);
+    loadEverything();
+  } catch (e) { showMsg("c_msg", dict.error, true); }
+}
+
+async function addInvoice() {
+  const dict = T[currentLang];
+  const customerId = getSelectedCustomerId("i_customer");
+  if (!customerId) {
+    showMsg("i_msg", "Please select a customer.", true);
+    return;
+  }
+  try {
+    const res = await fetch("/invoices", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        customer_id: customerId,
+        invoice_number: document.getElementById("i_number").value,
+        invoice_date: document.getElementById("i_date").value,
+        total_amount: Number(document.getElementById("i_amount").value)
+      })
+    });
+    if (!res.ok) throw new Error();
+    document.getElementById("i_number").value = "";
+    document.getElementById("i_amount").value = "";
+    document.getElementById("i_customer").value = "";
+    showMsg("i_msg", dict.invoiceAdded, false);
+    loadEverything();
+  } catch (e) { showMsg("i_msg", dict.error, true); }
+}
+
+function updatePaymentForm() {
+  const stage = document.getElementById("p_stage").value;
+  document.getElementById("stage_customer").style.display = stage === "CUSTOMER_TO_MCARGO" ? "block" : "none";
+  document.getElementById("stage_mcargo").style.display = stage === "MCARGO_TO_ICARGO" ? "block" : "none";
+  document.getElementById("stage_business").style.display = stage === "ICARGO_TO_BUSINESS" ? "block" : "none";
+
+  if (stage === "MCARGO_TO_ICARGO" && document.getElementById("breakdownRows").children.length === 0) {
+    addBreakdownRow();
+  }
+
+  if (stage === "MCARGO_TO_ICARGO" || stage === "ICARGO_TO_BUSINESS") {
+    refreshPaymentSources();
+  }
+
+}
+
+function addBreakdownRow() {
+  const row = document.createElement("div");
+  row.style.display = "grid";
+  row.style.gridTemplateColumns = "1fr 1fr 140px 40px";
+  row.style.gap = "8px";
+  row.style.marginBottom = "8px";
+
+  const select = document.createElement("select");
+  select.className = "breakdown-customer";
+  select.innerHTML = buildCustomerOptionsHTML();
+  select.onchange = () => handleCustomerSelectChange(select);
+
+  const source = document.createElement("select");
+  source.className = "breakdown-source";
+  source.innerHTML = '<option value="">-- Stage-1 payment --</option>';
+
+  const amount = document.createElement("input");
+  amount.className = "breakdown-amount";
+  amount.type = "number";
+  amount.min = "0";
+  amount.step = "0.01";
+  amount.placeholder = "Amount";
+  amount.oninput = updateBreakdownTotal;
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.textContent = "×";
+  remove.style.marginTop = "4px";
+  remove.onclick = () => { row.remove(); updateBreakdownTotal(); };
+
+  row.appendChild(select);
+  row.appendChild(source);
+  row.appendChild(amount);
+  row.appendChild(remove);
+  document.getElementById("breakdownRows").appendChild(row);
+
+  refreshStageSourceOptions();
+}
+
+function updateBreakdownTotal() {
+  let total = 0;
+  document.querySelectorAll(".breakdown-amount").forEach(i => total += Number(i.value || 0));
+  document.getElementById("breakdownTotal").textContent = `Breakup Total: ₹${total.toFixed(2)}`;
+}
+
+async function refreshStageSourceOptions() {
+  let transfers = [];
+  try {
+    transfers = await (await fetch("/transfers")).json();
+  } catch (e) {
+    transfers = [];
+  }
+
+  const stage1 = transfers.filter(
+    t => t.stage === "CUSTOMER_TO_MCARGO" && t.status === "confirmed"
+  );
+
+  const options = '<option value="">-- Stage-1 payment --</option>' +
+    stage1.map(t =>
+      `<option value="${t.id}">Payment #${t.id} — ₹${Number(t.total_amount).toFixed(2)}</option>`
+    ).join("");
+
+  document.querySelectorAll(".breakdown-source").forEach(sel => {
+    const old = sel.value;
+    sel.innerHTML = options;
+    if (old) sel.value = old;
+  });
+}
+
+async function refreshStage3SourceOptions() {
+  const select = document.getElementById("p_stage3_source");
+  if (!select) return;
+
+  let transfers = [];
+  let links = [];
+
+  try {
+    const res = await fetch("/transfers");
+    if (res.ok) transfers = await res.json();
+  } catch (e) {}
+
+  try {
+    const res = await fetch("/transfer-links");
+    if (res.ok) links = await res.json();
+  } catch (e) {}
+
+  const stage2 = transfers.filter(
+    t => t.stage === "MCARGO_TO_ICARGO" && t.status === "confirmed"
+  );
+
+  const old = select.value;
+
+  select.innerHTML =
+    '<option value="">-- Select Stage-2 transfer --</option>' +
+    stage2.map(t => {
+      const alreadySent = links
+        .filter(l => Number(l.earlier_transfer_id) === Number(t.id))
+        .reduce((sum, l) => sum + Number(l.amount || 0), 0);
+
+      const remaining = Math.max(
+        0,
+        Number(t.total_amount) - alreadySent
+      );
+
+      const label =
+        `Transfer #${t.id} — ₹${Number(t.total_amount).toFixed(2)} — ${T[currentLang].remainingStage2(Number(t.total_amount).toFixed(2), (Number(t.total_amount) - remaining).toFixed(2), remaining.toFixed(2))}`;
+
+      return `<option value="${t.id}" data-remaining="${remaining}" ${remaining <= 0.009 ? "disabled" : ""}>${label}</option>`;
+    }).join("");
+
+  if (
+    old &&
+    [...select.options].some(o => o.value === old && !o.disabled)
+  ) {
+    select.value = old;
+  }
+
+  updateStage3RemainingInfo();
+}
+
+function updateStage3RemainingInfo() {
+  const select = document.getElementById("p_stage3_source");
+  const amountInput = document.getElementById("p_amount_stage3");
+  if (!select || !amountInput) return;
+
+  let info = document.getElementById("stage3RemainingInfo");
+
+  if (!info) {
+    info = document.createElement("div");
+    info.id = "stage3RemainingInfo";
+    info.className = "hint";
+    select.insertAdjacentElement("afterend", info);
+  }
+
+  const option = select.options[select.selectedIndex];
+
+  if (!option || !select.value) {
+    info.textContent = "";
+    amountInput.removeAttribute("max");
+    return;
+  }
+
+  const remaining = Number(option.dataset.remaining || 0);
+
+  info.textContent =
+    T[currentLang].availableStage2(remaining.toFixed(2));
+
+  amountInput.max = remaining.toFixed(2);
+
+  if (Number(amountInput.value || 0) > remaining) {
+    amountInput.value = remaining.toFixed(2);
+  }
+}
+
+
+async function refreshPaymentSources() {
+  await refreshStageSourceOptions();
+  await refreshStage3SourceOptions();
+
+  const stage3Select = document.getElementById("p_stage3_source");
+  if (stage3Select && !stage3Select.dataset.remainingBound) {
+    stage3Select.dataset.remainingBound = "1";
+    stage3Select.addEventListener("change", updateStage3RemainingInfo);
+  }
+}
+
+
+async function recordPayment() {
+  const dict = T[currentLang];
+  const stage = document.getElementById("p_stage").value;
+  const status = document.getElementById("p_status").value;
+
+  const senderReceiverMap = {
+    CUSTOMER_TO_MCARGO: {
+      sender: "customer",
+      receiver: "Mauritius Cargo Person"
+    },
+    MCARGO_TO_ICARGO: {
+      sender: "Mauritius Cargo Person",
+      receiver: "India Cargo Person"
+    },
+    ICARGO_TO_BUSINESS: {
+      sender: "India Cargo Person",
+      receiver: "Business"
+    }
+  };
+
+  let amount, date, evidence, isLumpSum;
+
+  if (stage === "CUSTOMER_TO_MCARGO") {
+    amount = Number(document.getElementById("p_amount").value);
+    date = document.getElementById("p_date").value;
+    evidence = document.getElementById("p_evidence").value;
+    isLumpSum = false;
+  } else if (stage === "MCARGO_TO_ICARGO") {
+    amount = Number(document.getElementById("p_total_stage2").value);
+    date = document.getElementById("p_date_stage2").value;
+    evidence = document.getElementById("p_evidence_stage2").value;
+    isLumpSum = true;
+  } else {
+    amount = Number(document.getElementById("p_amount_stage3").value);
+    date = document.getElementById("p_date_stage3").value;
+    evidence = document.getElementById("p_evidence_stage3").value;
+    isLumpSum = true;
+  }
+
+  if (!amount || amount <= 0 || !date) {
+    showMsg("p_msg", "Please enter a valid amount and date.", true);
+    return;
+  }
+
+  if (stage === "CUSTOMER_TO_MCARGO" && !getSelectedCustomerId("p_customer")) {
+    showMsg("p_msg", "Please select a customer.", true);
+    return;
+  }
+
+  let breakdownEntries = [];
+
+  if (stage === "MCARGO_TO_ICARGO") {
+    const rows = [...document.querySelectorAll("#breakdownRows > div")];
+    const seenCustomerIds = new Set();
+    const seenSourceIds = new Set();
+    let breakupTotal = 0;
+
+    for (const row of rows) {
+      const rawVal = row.querySelector(".breakdown-customer").value;
+      const customerId =
+        rawVal && rawVal !== "__new__" ? Number(rawVal) : 0;
+      const val = Number(
+        row.querySelector(".breakdown-amount").value || 0
+      );
+      const sourceId = Number(
+        row.querySelector(".breakdown-source")?.value || 0
+      );
+
+      if (!customerId || val <= 0) continue;
+
+      if (seenCustomerIds.has(customerId)) {
+        showMsg(
+          "p_msg",
+          "The same customer cannot be added twice to one breakup.",
+          true
+        );
+        return;
+      }
+
+      if (!sourceId) {
+        showMsg(
+          "p_msg",
+          "Please select the Stage-1 payment for each customer.",
+          true
+        );
+        return;
+      }
+
+      if (seenSourceIds.has(sourceId)) {
+        showMsg(
+          "p_msg",
+          "The same Stage-1 payment cannot be selected twice in one Stage-2 transfer.",
+          true
+        );
+        return;
+      }
+
+      seenCustomerIds.add(customerId);
+      seenSourceIds.add(sourceId);
+      breakupTotal += val;
+
+      breakdownEntries.push({
+        customerId,
+        amount: val,
+        sourceId
+      });
+    }
+
+    if (Math.abs(breakupTotal - amount) > 0.009) {
+      showMsg(
+        "p_msg",
+        `Customer breakup ₹${breakupTotal.toFixed(2)} must equal total transfer ₹${amount.toFixed(2)}.`,
+        true
+      );
+      return;
+    }
+  }
+
+  try {
+    let stage1CustomerId = null;
+    let stage1InvoiceId = null;
+
+    if (stage === "CUSTOMER_TO_MCARGO") {
+      stage1CustomerId = getSelectedCustomerId("p_customer");
+      stage1InvoiceId = resolveInvoiceId(
+        document.getElementById("p_invoice").value
+      );
+    }
+
+    let stage3SourceId = null;
+
+    if (stage === "ICARGO_TO_BUSINESS") {
+      stage3SourceId = Number(
+        document.getElementById("p_stage3_source").value || 0
+      );
+
+      if (!stage3SourceId) {
+        showMsg(
+          "p_msg",
+          "Please select the Stage-2 transfer this receipt came from.",
+          true
+        );
+        return;
+      }
+
+      const selectedStage3Option =
+        document.getElementById("p_stage3_source").selectedOptions[0];
+
+      const availableFromStage2 = Number(
+        selectedStage3Option?.dataset.remaining || 0
+      );
+
+      if (amount > availableFromStage2 + 0.009) {
+        showMsg(
+          "p_msg",
+          T[currentLang].tooMuchStage3(availableFromStage2.toFixed(2)),
+          true
+        );
+        return;
+      }
+    }
+
+    // Validate Stage-1 sources before creating Stage 2.
+    if (stage === "MCARGO_TO_ICARGO") {
+      const allSharesRes = await fetch("/transfer-customers");
+      if (!allSharesRes.ok) {
+        throw new Error("Could not read Stage-1 customer payments.");
+      }
+
+      const allShares = await allSharesRes.json();
+
+      for (const entry of breakdownEntries) {
+        const matchingShare = allShares.find(
+          s =>
+            Number(s.transfer_id) === entry.sourceId &&
+            Number(s.customer_id) === entry.customerId
+        );
+
+        if (!matchingShare) {
+          throw new Error(
+            "Selected Stage-1 payment does not belong to this customer."
+          );
+        }
+
+        if (entry.amount > Number(matchingShare.amount)) {
+          throw new Error(
+            `Customer amount ₹${entry.amount.toFixed(2)} exceeds the selected Stage-1 payment share ₹${Number(matchingShare.amount).toFixed(2)}.`
+          );
+        }
+      }
+    }
+
+    // FIRST create the transfer. Stage links need this new transfer ID.
+    const transferRes = await fetch("/transfers", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        stage,
+        transfer_date: date,
+        total_amount: amount,
+        is_lump_sum: isLumpSum,
+        sender: senderReceiverMap[stage].sender,
+        receiver: senderReceiverMap[stage].receiver,
+        reference_note: "",
+        evidence_type: evidence,
+        status
+      })
+    });
+
+    if (!transferRes.ok) {
+      const detail = await transferRes.text();
+      throw new Error(detail || "Could not record the transfer.");
+    }
+
+    const transfer = await transferRes.json();
+
+    // Stage 1: identify whose money entered the chain.
+    if (stage === "CUSTOMER_TO_MCARGO") {
+      const tcRes = await fetch("/transfer-customers", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          transfer_id: transfer.id,
+          customer_id: stage1CustomerId,
+          amount,
+          intended_invoice_id: stage1InvoiceId
+        })
+      });
+
+      if (!tcRes.ok) {
+        const detail = await tcRes.text();
+        throw new Error(detail || "Could not save the customer payment.");
+      }
+    }
+
+    // Stage 2: record the actual customer breakup and connect
+    // each part to its selected Stage-1 payment.
+    if (stage === "MCARGO_TO_ICARGO") {
+      for (const entry of breakdownEntries) {
+        const tcRes = await fetch("/transfer-customers", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            transfer_id: transfer.id,
+            customer_id: entry.customerId,
+            amount: entry.amount,
+            intended_invoice_id: null
+          })
+        });
+
+        if (!tcRes.ok) {
+          const detail = await tcRes.text();
+          throw new Error(
+            detail || "Could not save the Stage-2 customer share."
+          );
+        }
+
+        const linkRes = await fetch("/transfer-links", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            earlier_transfer_id: entry.sourceId,
+            later_transfer_id: transfer.id,
+            amount: entry.amount
+          })
+        });
+
+        if (!linkRes.ok) {
+          const detail = await linkRes.text();
+          throw new Error(
+            detail || "Could not connect Stage 1 to Stage 2."
+          );
+        }
+      }
+    }
+
+    // Stage 3: record ONLY the total received and connect it
+    // to the selected Stage-2 transfer. Do not infer customer ownership.
+    if (stage === "ICARGO_TO_BUSINESS") {
+      const linkRes = await fetch("/transfer-links", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          earlier_transfer_id: stage3SourceId,
+          later_transfer_id: transfer.id,
+          amount
+        })
+      });
+
+      if (!linkRes.ok) {
+        const detail = await linkRes.text();
+        throw new Error(
+          detail || "Could not connect Stage 2 to Stage 3."
+        );
+      }
+    }
+
+    if (stage === "CUSTOMER_TO_MCARGO") {
+      document.getElementById("p_amount").value = "";
+      document.getElementById("p_customer").value = "";
+      document.getElementById("p_invoice").value = "";
+    } else if (stage === "MCARGO_TO_ICARGO") {
+      document.getElementById("p_total_stage2").value = "";
+      document.getElementById("breakdownRows").innerHTML = "";
+      addBreakdownRow();
+      updateBreakdownTotal();
+    } else {
+      document.getElementById("p_amount_stage3").value = "";
+      document.getElementById("p_stage3_source").value = "";
+    }
+
+    showMsg("p_msg", dict.paymentSaved, false);
+    loadEverything();
+
+  } catch (e) {
+    showMsg(
+      "p_msg",
+      e && e.message ? e.message : dict.error,
+      true
+    );
+  }
+}
+
+
+async function checkMoney() {
+  const dict = T[currentLang];
+  const resultsEl = document.getElementById("moneyResults");
+  const summaryEl = document.getElementById("moneySummary");
+
+  resultsEl.innerHTML = "...";
+  summaryEl.style.display = "none";
+
+  let transfers = [];
+  let transferCustomers = [];
+  let links = [];
+
+  try {
+    const res = await fetch("/transfers");
+    if (res.ok) transfers = await res.json();
+  } catch (e) {}
+
+  try {
+    const res = await fetch("/transfer-customers");
+    if (res.ok) transferCustomers = await res.json();
+  } catch (e) {}
+
+  try {
+    const res = await fetch("/transfer-links");
+    if (res.ok) links = await res.json();
+  } catch (e) {}
+
+  const customerByTransfer = {};
+  for (const tc of transferCustomers) {
+    if (!customerByTransfer[tc.transfer_id]) {
+      customerByTransfer[tc.transfer_id] = [];
+    }
+    customerByTransfer[tc.transfer_id].push(tc);
+  }
+
+  const outgoingTotal = (id) =>
+    links
+      .filter(l => Number(l.earlier_transfer_id) === Number(id))
+      .reduce((sum, l) => sum + Number(l.amount || 0), 0);
+
+  const incomingTotal = (id) =>
+    links
+      .filter(l => Number(l.later_transfer_id) === Number(id))
+      .reduce((sum, l) => sum + Number(l.amount || 0), 0);
+
+  const singleCustomerName = (id) => {
+    const shares = customerByTransfer[id] || [];
+    return shares.length === 1 && shares[0].customer_name
+      ? shares[0].customer_name
+      : null;
+  };
+
+  const waiting = [];
+  const mismatches = [];
+  const allocations = [];
+  const matched = [];
+
+  const unique = arr => [...new Set(arr)];
+
+  // -----------------------------
+  // STAGE 1: Customer -> Mauritius
+  // -----------------------------
+  for (const t of transfers.filter(x => x.stage === "CUSTOMER_TO_MCARGO")) {
+    const total = Number(t.total_amount);
+    const outgoing = outgoingTotal(t.id);
+    const customer = singleCustomerName(t.id);
+
+    if (outgoing < 0.009) {
+      waiting.push(
+        dict.waitingText(
+          customer || dict.movementCustomer,
+          dict.movementMauritius,
+          total.toFixed(2)
+        )
+      );
+    } else if (Math.abs(total - outgoing) > 0.009) {
+      mismatches.push(
+        dict.mismatchText(
+          customer || dict.movementCustomer,
+          dict.movementMauritius,
+          total.toFixed(2),
+          outgoing.toFixed(2),
+          Math.abs(total - outgoing).toFixed(2)
+        )
+      );
+    } else {
+      matched.push(
+        dict.matchedMovement(
+          customer || dict.movementCustomer,
+          dict.movementMauritius,
+          total.toFixed(2)
+        )
+      );
+    }
+  }
+
+  // -----------------------------
+  // STAGE 2: Mauritius -> India
+  // Check BOTH incoming and outgoing.
+  // -----------------------------
+  for (const t of transfers.filter(x => x.stage === "MCARGO_TO_ICARGO")) {
+    const total = Number(t.total_amount);
+    const incoming = incomingTotal(t.id);
+    const outgoing = outgoingTotal(t.id);
+
+    // Previous-stage money entering this Stage-2 transfer.
+    if (incoming < 0.009) {
+      waiting.push(
+        dict.incomingWaiting(
+          dict.movementMauritius,
+          dict.movementIndia,
+          total.toFixed(2)
+        )
+      );
+    } else if (incoming < total - 0.009) {
+      mismatches.push(
+        dict.incomingMismatch(
+          dict.movementMauritius,
+          dict.movementIndia,
+          total.toFixed(2),
+          incoming.toFixed(2),
+          (total - incoming).toFixed(2)
+        )
+      );
+    } else if (incoming > total + 0.009) {
+      mismatches.push(
+        dict.incomingExtra(
+          dict.movementMauritius,
+          dict.movementIndia,
+          total.toFixed(2),
+          incoming.toFixed(2),
+          (incoming - total).toFixed(2)
+        )
+      );
+    }
+
+    // Customer breakup must equal Stage-2's own total.
+    try {
+      const breakupRes = await fetch(
+        `/reconciliation/transfer/${t.id}/breakup-check`
+      );
+
+      if (breakupRes.ok) {
+        const breakup = await breakupRes.json();
+
+        if (breakup.mismatch) {
+          mismatches.push(
+            dict.breakupText(
+              dict.movementMauritius,
+              dict.movementIndia,
+              Number(breakup.transfer_total).toFixed(2),
+              Number(breakup.breakup_total).toFixed(2),
+              Math.abs(Number(breakup.difference)).toFixed(2)
+            )
+          );
+        }
+      }
+    } catch (e) {}
+
+    // Money leaving Stage-2 towards Stage-3.
+    if (outgoing < 0.009) {
+      waiting.push(
+        dict.waitingText(
+          dict.movementMauritius,
+          dict.movementIndia,
+          total.toFixed(2)
+        )
+      );
+    } else if (Math.abs(total - outgoing) > 0.009) {
+      mismatches.push(
+        dict.mismatchText(
+          dict.movementMauritius,
+          dict.movementIndia,
+          total.toFixed(2),
+          outgoing.toFixed(2),
+          Math.abs(total - outgoing).toFixed(2)
+        )
+      );
+    } else {
+      matched.push(
+        dict.matchedMovement(
+          dict.movementMauritius,
+          dict.movementIndia,
+          total.toFixed(2)
+        )
+      );
+    }
+  }
+
+  // -----------------------------
+  // STAGE 3: India Cargo -> Business
+  // Terminal stage: check incoming only.
+  // Never invent customer ownership.
+  // -----------------------------
+  for (const t of transfers.filter(
+    x => x.stage === "ICARGO_TO_BUSINESS" && x.status === "confirmed"
+  )) {
+    const total = Number(t.total_amount);
+    const incoming = incomingTotal(t.id);
+    const shares = customerByTransfer[t.id] || [];
+    const assigned = shares.reduce(
+      (sum, s) => sum + Number(s.amount || 0),
+      0
+    );
+
+    if (incoming < 0.009) {
+      waiting.push(
+        dict.incomingWaiting(
+          dict.movementIndia,
+          dict.movementBusiness,
+          total.toFixed(2)
+        )
+      );
+    } else if (incoming < total - 0.009) {
+      mismatches.push(
+        dict.incomingMismatch(
+          dict.movementIndia,
+          dict.movementBusiness,
+          total.toFixed(2),
+          incoming.toFixed(2),
+          (total - incoming).toFixed(2)
+        )
+      );
+    } else if (incoming > total + 0.009) {
+      mismatches.push(
+        dict.incomingExtra(
+          dict.movementIndia,
+          dict.movementBusiness,
+          total.toFixed(2),
+          incoming.toFixed(2),
+          (incoming - total).toFixed(2)
+        )
+      );
+    }
+
+    // Customer ownership is separate from the stage link.
+    if (assigned > total + 0.009) {
+      mismatches.push(
+        dict.customerOverassigned(
+          total.toFixed(2),
+          assigned.toFixed(2)
+        )
+      );
+    } else if (assigned < total - 0.009) {
+      allocations.push(
+        dict.businessUnassigned(
+          total.toFixed(2),
+          (total - assigned).toFixed(2)
+        )
+      );
+    }
+  }
+
+  // -----------------------------
+  // Invoice allocation by customer
+  // -----------------------------
+  for (const c of cachedCustomers) {
+    try {
+      const res = await fetch(
+        `/reconciliation/customer/${c.id}/allocation-check`
+      );
+
+      if (!res.ok) continue;
+
+      const alloc = await res.json();
+
+      if (alloc.mismatch && Number(alloc.unallocated_amount) > 0.009) {
+        allocations.push(
+          dict.customerUnallocated(
+            c.full_name,
+            Number(alloc.unallocated_amount).toFixed(2)
+          )
+        );
+      }
+    } catch (e) {}
+  }
+
+  const w = unique(waiting);
+  const m = unique(mismatches);
+  const a = unique(allocations);
+  const g = unique(matched);
+
+  const totalIssues = m.length + a.length;
+  const issueCounter = document.getElementById("sum_issues");
+  if (issueCounter) issueCounter.textContent = totalIssues;
+
+  summaryEl.innerHTML = `
+    <div class="money-summary-card">
+      <strong>${m.length}</strong>${dict.mismatchCount}
+    </div>
+    <div class="money-summary-card">
+      <strong>${w.length}</strong>${dict.waitingCount}
+    </div>
+    <div class="money-summary-card">
+      <strong>${a.length}</strong>${dict.allocationCount}
+    </div>
+    <div class="money-summary-card">
+      <strong>${g.length}</strong>${dict.matchedCount}
+    </div>
+  `;
+  summaryEl.style.display = "grid";
+
+  const section = (title, cls, items) => {
+    if (!items.length) return "";
+    return `
+      <div class="money-section-title">${title}</div>
+      ${items.map(x => `<div class="${cls}">${x}</div>`).join("")}
+    `;
+  };
+
+  if (!w.length && !m.length && !a.length) {
+    resultsEl.innerHTML =
+      `<div class="clean">${dict.noIssues}</div>` +
+      section("🟢 " + dict.matchedSection, "clean", g);
+    return;
+  }
+
+  resultsEl.innerHTML =
+    section("🔴 " + dict.mismatchSection, "issue", m) +
+    section("🟡 " + dict.waitingSection, "waiting", w) +
+    section("🟠 " + dict.allocationSection, "allocation-pending", a) +
+    section("🟢 " + dict.matchedSection, "clean", g);
+}
+
+setLang('en');
+updatePaymentForm();
+</script>
+
+</body></html>

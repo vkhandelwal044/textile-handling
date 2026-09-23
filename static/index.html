@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Textile Payment Tracker</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 700px; margin: 30px auto; background: #f5f5f5; }
+  h2 { border-bottom: 2px solid #333; padding-bottom: 5px; margin-top: 40px; }
+  .card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  label { display: block; margin-top: 8px; font-size: 14px; color: #333; }
+  input, select { width: 100%; padding: 6px; margin-top: 3px; box-sizing: border-box; }
+  button { margin-top: 12px; padding: 8px 16px; background: #2b6cb0; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  button:hover { background: #1a4d80; }
+  pre { background: #eee; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>Textile Payment Tracker</h1>
+
+<h2>Add Customer</h2>
+<div class="card">
+  <label>Full Name</label><input id="c_name">
+  <label>Mobile (optional)</label><input id="c_mobile">
+  <button onclick="createCustomer()">Add Customer</button>
+  <pre id="c_result"></pre>
+</div>
+
+<h2>Add Invoice</h2>
+<div class="card">
+  <label>Customer ID</label><input id="i_customer_id" type="number">
+  <label>Invoice Number</label><input id="i_number">
+  <label>Invoice Date</label><input id="i_date" type="date">
+  <label>Total Amount</label><input id="i_amount" type="number">
+  <button onclick="createInvoice()">Add Invoice</button>
+  <pre id="i_result"></pre>
+</div>
+
+<h2>Record a Transfer</h2>
+<div class="card">
+  <label>Stage</label>
+  <select id="t_stage">
+    <option value="CUSTOMER_TO_MCARGO">Customer → Mauritius Cargo</option>
+    <option value="MCARGO_TO_ICARGO">Mauritius Cargo → India Cargo</option>
+    <option value="ICARGO_TO_BUSINESS">India Cargo → Business</option>
+  </select>
+  <label>Date</label><input id="t_date" type="date">
+  <label>Amount</label><input id="t_amount" type="number">
+  <label>Is this a lump sum (covers multiple customers)?</label>
+  <select id="t_lump"><option value="false">No</option><option value="true">Yes</option></select>
+  <label>Sender</label><input id="t_sender">
+  <label>Receiver</label><input id="t_receiver">
+  <label>How do we know this happened?</label>
+  <select id="t_evidence"><option value="call">Phone call</option><option value="screenshot">Screenshot</option><option value="bank_receipt">Bank receipt</option></select>
+  <label>Status</label><select id="t_status"><option value="confirmed">Confirmed</option><option value="pending">Pending</option></select>
+  <button onclick="createTransfer()">Record Transfer</button>
+  <pre id="t_result"></pre>
+</div>
+
+<h2>Link Two Transfers Together</h2>
+<div class="card">
+  <label>Earlier Transfer ID</label><input id="l_earlier" type="number">
+  <label>Later Transfer ID</label><input id="l_later" type="number">
+  <label>Amount</label><input id="l_amount" type="number">
+  <button onclick="createLink()">Link Transfers</button>
+  <pre id="l_result"></pre>
+</div>
+
+<h2>Assign a Customer's Share of a Transfer</h2>
+<div class="card">
+  <label>Transfer ID</label><input id="tc_transfer_id" type="number">
+  <label>Customer ID</label><input id="tc_customer_id" type="number">
+  <label>Their Amount</label><input id="tc_amount" type="number">
+  <label>Which Invoice Is This For? (optional, leave blank if unsure)</label><input id="tc_invoice_id" type="number">
+  <button onclick="createTransferCustomer()">Assign</button>
+  <pre id="tc_result"></pre>
+</div>
+
+<h2>Allocate Payment to Invoice</h2>
+<div class="card">
+  <label>Transfer-Customer ID</label><input id="a_tc_id" type="number">
+  <label>Invoice ID</label><input id="a_invoice_id" type="number">
+  <label>Amount</label><input id="a_amount" type="number">
+  <label>Date</label><input id="a_date" type="date">
+  <button onclick="createAllocation()">Allocate</button>
+  <pre id="a_result"></pre>
+</div>
+
+<h2>Check an Invoice</h2>
+<div class="card">
+  <label>Invoice ID</label><input id="v_invoice_id" type="number">
+  <button onclick="viewInvoice()">Check Status</button>
+  <pre id="v_result"></pre>
+</div>
+
+<h2>Check for Mismatches (Reconciliation)</h2>
+<div class="card">
+  <label>Transfer ID (for breakup / stage check)</label><input id="r_transfer_id" type="number">
+  <button onclick="checkBreakup()">Check Breakup</button>
+  <button onclick="checkStage()">Check Stage</button>
+  <label>Customer ID (for allocation check)</label><input id="r_customer_id" type="number">
+  <button onclick="checkAllocation()">Check Customer Allocation</button>
+  <pre id="r_result"></pre>
+</div>
+
+<h2>Customer's Full History</h2>
+<div class="card">
+  <label>Customer ID</label><input id="h_customer_id" type="number">
+  <button onclick="viewHistory()">View History</button>
+  <pre id="h_result"></pre>
+</div>
+
+<script>
+const API = "";
+
+function formatResult(obj, indent = "") {
+  let lines = "";
+  for (const key in obj) {
+    const value = obj[key];
+    const label = key.replace(/_/g, " ");
+    if (Array.isArray(value)) {
+      lines += `${indent}${label}:\n`;
+      value.forEach((item, i) => {
+        lines += `${indent}  ${i + 1}.\n`;
+        lines += formatResult(item, indent + "    ");
+      });
+    } else if (value !== null && typeof value === "object") {
+      lines += `${indent}${label}:\n`;
+      lines += formatResult(value, indent + "  ");
+    } else {
+      lines += `${indent}${label} = ${value}\n`;
+    }
+  }
+  return lines;
+}
+
+async function post(url, body, resultId) {
+  const res = await fetch(API + url, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  document.getElementById(resultId).textContent = formatResult(data);
+}
+async function get(url, resultId) {
+  const res = await fetch(API + url);
+  const data = await res.json();
+  document.getElementById(resultId).textContent = formatResult(data);
+}
+function createCustomer() {
+  post("/customers", {
+    full_name: document.getElementById("c_name").value,
+    mobile: document.getElementById("c_mobile").value || null,
+    address: null, notes: null
+  }, "c_result");
+}
+
+function createInvoice() {
+  post("/invoices", {
+    customer_id: Number(document.getElementById("i_customer_id").value),
+    invoice_number: document.getElementById("i_number").value,
+    invoice_date: document.getElementById("i_date").value,
+    total_amount: Number(document.getElementById("i_amount").value)
+  }, "i_result");
+}
+
+function createTransfer() {
+  post("/transfers", {
+    stage: document.getElementById("t_stage").value,
+    transfer_date: document.getElementById("t_date").value,
+    total_amount: Number(document.getElementById("t_amount").value),
+    is_lump_sum: document.getElementById("t_lump").value === "true",
+    sender: document.getElementById("t_sender").value,
+    receiver: document.getElementById("t_receiver").value,
+    reference_note: null,
+    evidence_type: document.getElementById("t_evidence").value,
+    status: document.getElementById("t_status").value
+  }, "t_result");
+}
+
+function createLink() {
+  post("/transfer-links", {
+    earlier_transfer_id: Number(document.getElementById("l_earlier").value),
+    later_transfer_id: Number(document.getElementById("l_later").value),
+    amount: Number(document.getElementById("l_amount").value)
+  }, "l_result");
+}
+
+function createTransferCustomer() {
+  const invoiceVal = document.getElementById("tc_invoice_id").value;
+  post("/transfer-customers", {
+    transfer_id: Number(document.getElementById("tc_transfer_id").value),
+    customer_id: Number(document.getElementById("tc_customer_id").value),
+    amount: Number(document.getElementById("tc_amount").value),
+    intended_invoice_id: invoiceVal ? Number(invoiceVal) : null
+  }, "tc_result");
+}
+
+function createAllocation() {
+  post("/allocations", {
+    transfer_customer_id: Number(document.getElementById("a_tc_id").value),
+    invoice_id: Number(document.getElementById("a_invoice_id").value),
+    amount: Number(document.getElementById("a_amount").value),
+    allocated_date: document.getElementById("a_date").value
+  }, "a_result");
+}
+
+function viewInvoice() {
+  get("/invoices/" + document.getElementById("v_invoice_id").value, "v_result");
+}
+
+function checkBreakup() {
+  get("/reconciliation/transfer/" + document.getElementById("r_transfer_id").value + "/breakup-check", "r_result");
+}
+function checkStage() {
+  get("/reconciliation/transfer/" + document.getElementById("r_transfer_id").value + "/stage-check", "r_result");
+}
+function checkAllocation() {
+  get("/reconciliation/customer/" + document.getElementById("r_customer_id").value + "/allocation-check", "r_result");
+}
+
+function viewHistory() {
+  get("/payment-history/customer/" + document.getElementById("h_customer_id").value, "h_result");
+}
+</script>
+
+</body>
+</html>
