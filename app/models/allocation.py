@@ -10,3 +10,4 @@ class Allocation(Base):
     invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=False)
     amount = Column(Numeric(12, 2), nullable=False)
     allocated_date = Column(Date, nullable=False)
+    """hello"""
