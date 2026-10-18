@@ -692,14 +692,29 @@ async function addInvoice() {
     showMsg("i_msg", "Please select a customer.", true);
     return;
   }
+  const invoiceNumber = document.getElementById("i_number").value.trim();
+  const invoiceDate = document.getElementById("i_date").value;
+  const amount = Number(document.getElementById("i_amount").value);
+  if (!invoiceNumber) {
+    showMsg("i_msg", "Please enter the invoice number.", true);
+    return;
+  }
+  if (!invoiceDate) {
+    showMsg("i_msg", "Please enter the invoice date.", true);
+    return;
+  }
+  if (!(amount > 0)) {
+    showMsg("i_msg", "Please enter an amount greater than 0.", true);
+    return;
+  }
   try {
     const res = await fetch("/invoices", {
       method: "POST", headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         customer_id: customerId,
-        invoice_number: document.getElementById("i_number").value,
-        invoice_date: document.getElementById("i_date").value,
-        total_amount: Number(document.getElementById("i_amount").value)
+        invoice_number: invoiceNumber,
+        invoice_date: invoiceDate,
+        total_amount: amount
       })
     });
     if (!res.ok) throw new Error();
