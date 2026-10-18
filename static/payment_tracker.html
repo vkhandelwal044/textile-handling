@@ -1122,47 +1122,54 @@ async function recordPayment() {
       }
     }
 
-    // FIRST create the transfer. Stage links need this new transfer ID.
-    const transferRes = await fetch("/transfers", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        stage,
-        transfer_date: date,
-        total_amount: amount,
-        is_lump_sum: isLumpSum,
-        sender: senderReceiverMap[stage].sender,
-        receiver: senderReceiverMap[stage].receiver,
-        reference_note: "",
-        evidence_type: evidence,
-        status
-      })
-    });
+    let transfer = null;
 
-    if (!transferRes.ok) {
-      const detail = await transferRes.text();
-      throw new Error(detail || "Could not record the transfer.");
-    }
-
-    const transfer = await transferRes.json();
-
-    // Stage 1: identify whose money entered the chain.
     if (stage === "CUSTOMER_TO_MCARGO") {
-      const tcRes = await fetch("/transfer-customers", {
+      // Stage 1: ONE request saves the hop and its "whose money" row
+      // together, so a failure can never leave a hop with no customer.
+      const stage1Res = await fetch("/stage1-payments", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
-          transfer_id: transfer.id,
           customer_id: stage1CustomerId,
           amount,
+          transfer_date: date,
+          evidence_type: evidence,
+          status,
           intended_invoice_id: stage1InvoiceId
         })
       });
 
-      if (!tcRes.ok) {
-        const detail = await tcRes.text();
-        throw new Error(detail || "Could not save the customer payment.");
+      if (!stage1Res.ok) {
+        const body = await stage1Res.json().catch(() => ({}));
+        throw new Error(
+          typeof body.detail === "string" ? body.detail : "Could not save the customer payment."
+        );
       }
+    } else {
+      // Stages 2 and 3: FIRST create the transfer. Stage links need this new transfer ID.
+      const transferRes = await fetch("/transfers", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          stage,
+          transfer_date: date,
+          total_amount: amount,
+          is_lump_sum: isLumpSum,
+          sender: senderReceiverMap[stage].sender,
+          receiver: senderReceiverMap[stage].receiver,
+          reference_note: "",
+          evidence_type: evidence,
+          status
+        })
+      });
+
+      if (!transferRes.ok) {
+        const detail = await transferRes.text();
+        throw new Error(detail || "Could not record the transfer.");
+      }
+
+      transfer = await transferRes.json();
     }
 
     // Stage 2: record the actual customer breakup and connect
