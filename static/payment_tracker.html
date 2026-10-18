@@ -141,7 +141,7 @@
       <h3 id="t_addCustomerHeading">Add a Customer</h3>
       <label id="t_fullName">Full Name</label><input id="c_name">
       <label id="t_mobile">Mobile Number</label><input id="c_mobile">
-      <button class="action" onclick="addCustomer()" id="t_addCustomerBtn">Add Customer</button>
+      <button class="action" onclick="withButtonDisabled(this, addCustomer)" id="t_addCustomerBtn">Add Customer</button>
       <div class="msg" id="c_msg" style="display:none"></div>
     </div>
     <div class="card">
@@ -163,7 +163,7 @@
       <label id="t_invoiceNumber">Invoice Number</label><input id="i_number">
       <label id="t_invoiceDate">Date</label><input id="i_date" type="date">
       <label id="t_totalAmount">Total Amount</label><input id="i_amount" type="number">
-      <button class="action" onclick="addInvoice()" id="t_addInvoiceBtn">Add Invoice</button>
+      <button class="action" onclick="withButtonDisabled(this, addInvoice)" id="t_addInvoiceBtn">Add Invoice</button>
       <div class="msg" id="i_msg" style="display:none"></div>
     </div>
     <div class="card">
@@ -667,10 +667,15 @@ function renderInvoiceTable() {
 
 async function addCustomer() {
   const dict = T[currentLang];
+  const name = document.getElementById("c_name").value.trim();
+  if (!name) {
+    showMsg("c_msg", "Please enter the customer's name.", true);
+    return;
+  }
   try {
     const res = await fetch("/customers", {
       method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ full_name: document.getElementById("c_name").value,
+      body: JSON.stringify({ full_name: name,
         mobile: document.getElementById("c_mobile").value || null, address: null, notes: null })
     });
     if (!res.ok) throw new Error();

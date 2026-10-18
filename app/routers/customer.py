@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.customer import Customer
@@ -17,6 +17,11 @@ def get_db():
 
 @router.post("/customers", response_model=CustomerOut)
 def create_customer(customer: CustomerCreate, db: Session = Depends(get_db)):
+    # A customer must have a real name. Spaces alone don't count.
+    customer.full_name = customer.full_name.strip()
+    if not customer.full_name:
+        raise HTTPException(status_code=400, detail="Customer name cannot be empty.")
+
     new_customer = Customer(**customer.dict())
     db.add(new_customer)
     db.commit()
