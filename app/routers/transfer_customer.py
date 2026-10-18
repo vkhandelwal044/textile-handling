@@ -4,6 +4,7 @@ from app.database import SessionLocal
 from app.models.transfer_customer import TransferCustomer
 from app.models.transfer import Transfer
 from app.models.customer import Customer
+from app.models.invoice import Invoice
 from app.schemas.transfer_customer import TransferCustomerCreate, TransferCustomerOut
 from decimal import Decimal
 
@@ -26,6 +27,19 @@ def create_transfer_customer(tc: TransferCustomerCreate, db: Session = Depends(g
     customer = db.query(Customer).filter(Customer.id == tc.customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
+
+    # The bill is optional, but if one is named it must be this customer's own bill.
+    if tc.intended_invoice_id is not None:
+        invoice = db.query(Invoice).filter(Invoice.id == tc.intended_invoice_id).first()
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        if invoice.customer_id != tc.customer_id:
+            bill_owner = db.query(Customer).filter(Customer.id == invoice.customer_id).first()
+            bill_name = bill_owner.full_name if bill_owner else f"customer ID {invoice.customer_id}"
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invoice {invoice.invoice_number} belongs to {bill_name}, not {customer.full_name}. Nothing was saved."
+            )
 
     # A customer can have only one share on the same transfer. This stops a
     # double click or a re-sent form from saving the same share twice.
