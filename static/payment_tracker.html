@@ -40,6 +40,7 @@
   input, select { width: 100%; padding: 9px; margin-top: 4px; font-size: 16px; border: 1px solid #999; border-radius: 5px; background: white; }
   button.action { margin-top: 14px; width: 100%; padding: 13px; background: var(--maroon); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
   button.action:hover { background: #5f2323; }
+  button.action:disabled { opacity: 0.5; cursor: wait; }
 
   table { width: 100%; border-collapse: collapse; margin-top: 8px; }
   th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); font-size: 15px; }
@@ -251,7 +252,7 @@
 
       <label id="t_confirmed">Is this confirmed (money actually moved)?</label>
       <select id="p_status"><option value="confirmed" id="t_yes">Yes, confirmed</option><option value="pending" id="t_no">Not yet, just expected</option></select>
-      <button class="action" onclick="recordPayment()" id="t_recordBtn">Save</button>
+      <button class="action" onclick="withButtonDisabled(this, recordPayment)" id="t_recordBtn">Save</button>
       <div class="msg" id="p_msg" style="display:none"></div>
     </div>
   </div>
@@ -505,6 +506,19 @@ function showMsg(elId, text, isError) {
   el.style.display = "block";
   el.className = "msg " + (isError ? "err" : "ok");
   el.textContent = text;
+}
+
+// Turns a save button off while its save is running, so a double click
+// can't send the same save twice. The button always turns back on when
+// the save finishes, even if it failed, so the form can be fixed and retried.
+async function withButtonDisabled(button, saveFunction) {
+  if (button.disabled) return;
+  button.disabled = true;
+  try {
+    await saveFunction();
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function statusBadge(status, dict) {
