@@ -717,7 +717,12 @@ async function addInvoice() {
         total_amount: amount
       })
     });
-    if (!res.ok) throw new Error();
+    if (!res.ok) {
+      // Show the backend's own reason (e.g. "already exists") when it sent one.
+      const body = await res.json().catch(() => ({}));
+      showMsg("i_msg", typeof body.detail === "string" ? body.detail : dict.error, true);
+      return;
+    }
     document.getElementById("i_number").value = "";
     document.getElementById("i_amount").value = "";
     document.getElementById("i_customer").value = "";
@@ -1036,6 +1041,22 @@ async function recordPayment() {
       stage1InvoiceId = resolveInvoiceId(
         document.getElementById("p_invoice").value
       );
+
+      // Check the bill belongs to this customer BEFORE saving anything,
+      // so a wrong bill can't leave a hop with no customer behind.
+      if (stage1InvoiceId) {
+        const bill = cachedInvoices.find(i => i.id === stage1InvoiceId);
+        if (bill && bill.customer_id !== stage1CustomerId) {
+          const billOwner = cachedCustomers.find(c => c.id === bill.customer_id);
+          const payer = cachedCustomers.find(c => c.id === stage1CustomerId);
+          showMsg(
+            "p_msg",
+            `Invoice ${bill.invoice_number} belongs to ${billOwner ? billOwner.full_name : "another customer"}, not ${payer ? payer.full_name : "this customer"}. Nothing was saved.`,
+            true
+          );
+          return;
+        }
+      }
     }
 
     let stage3SourceId = null;
