@@ -5,6 +5,7 @@ from app.models.allocation import Allocation
 from app.models.transfer_customer import TransferCustomer
 from app.models.transfer import Transfer
 from app.models.invoice import Invoice
+from app.models.customer import Customer
 from app.schemas.allocation import AllocationCreate, AllocationOut
 
 router = APIRouter()
@@ -34,6 +35,17 @@ def create_allocation(alloc: AllocationCreate, db: Session = Depends(get_db)):
     invoice = db.query(Invoice).filter(Invoice.id == alloc.invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # A bill can only be paid with its own customer's money.
+    if tc.customer_id != invoice.customer_id:
+        money_owner = db.query(Customer).filter(Customer.id == tc.customer_id).first()
+        bill_owner = db.query(Customer).filter(Customer.id == invoice.customer_id).first()
+        money_name = money_owner.full_name if money_owner else f"customer ID {tc.customer_id}"
+        bill_name = bill_owner.full_name if bill_owner else f"customer ID {invoice.customer_id}"
+        raise HTTPException(
+            status_code=400,
+            detail=f"This money belongs to {money_name}, but invoice {invoice.invoice_number} belongs to {bill_name}. Nothing was saved."
+        )
 
     already_allocated = db.query(Allocation).filter(
         Allocation.transfer_customer_id == tc.id
