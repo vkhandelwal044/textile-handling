@@ -7,7 +7,7 @@ class Invoice(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
-    invoice_number = Column(String, nullable=False)
+    invoice_number = Column(String, nullable=False, unique=True)
     invoice_date = Column(Date, nullable=False)
     total_amount = Column(Numeric(12, 2), nullable=False)
     paid_amount = Column(Numeric(12, 2), nullable=False, default=0)
