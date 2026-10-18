@@ -26,6 +26,19 @@ def create_transfer_customer(tc: TransferCustomerCreate, db: Session = Depends(g
     customer = db.query(Customer).filter(Customer.id == tc.customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
+
+    # A customer can have only one share on the same transfer. This stops a
+    # double click or a re-sent form from saving the same share twice.
+    duplicate = db.query(TransferCustomer).filter(
+        TransferCustomer.transfer_id == tc.transfer_id,
+        TransferCustomer.customer_id == tc.customer_id
+    ).first()
+    if duplicate:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{customer.full_name} already has a share of ₹{duplicate.amount} on transfer {tc.transfer_id}. Nothing was saved."
+        )
+
     if tc.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
