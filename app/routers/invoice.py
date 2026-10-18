@@ -23,6 +23,14 @@ def create_invoice(invoice: InvoiceCreate, db: Session = Depends(get_db)):
     customer = db.query(Customer).filter(Customer.id == invoice.customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
+
+    # An invoice needs a real invoice number and a positive amount.
+    invoice.invoice_number = invoice.invoice_number.strip()
+    if not invoice.invoice_number:
+        raise HTTPException(status_code=400, detail="Invoice number cannot be empty.")
+    if invoice.total_amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive.")
+
     new_invoice = Invoice(**invoice.dict(), paid_amount=0, status="unpaid")
     db.add(new_invoice)
     db.commit()
