@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.invoice import Invoice
@@ -25,11 +26,25 @@ def create_invoice(invoice: InvoiceCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Customer not found")
 
     # An invoice needs a real invoice number and a positive amount.
-    invoice.invoice_number = invoice.invoice_number.strip()
+    # Numbers are saved in capitals, so "roh-001" and "ROH-001" are the same bill.
+    invoice.invoice_number = invoice.invoice_number.strip().upper()
     if not invoice.invoice_number:
         raise HTTPException(status_code=400, detail="Invoice number cannot be empty.")
     if invoice.total_amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive.")
+
+    # Bill numbers must be unique. upper() on the saved number also catches
+    # older bills that were saved in small letters.
+    existing = db.query(Invoice).filter(
+        func.upper(Invoice.invoice_number) == invoice.invoice_number
+    ).first()
+    if existing:
+        owner = db.query(Customer).filter(Customer.id == existing.customer_id).first()
+        owner_label = f"{owner.full_name}, ID {owner.id}" if owner else f"customer ID {existing.customer_id}"
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invoice number {invoice.invoice_number} already exists ({owner_label}). Nothing was saved."
+        )
 
     new_invoice = Invoice(**invoice.dict(), paid_amount=0, status="unpaid")
     db.add(new_invoice)
